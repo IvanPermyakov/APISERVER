@@ -61,8 +61,6 @@ class UserData(connectionDB, Base):
             return  'Страна не может быть больше 50 символов'
         elif len(self._payload['patronymic_']) > 50:
             return  'Отчество не может быть больше 50 символов'
-        elif self.session.query(UserData.phone_number).filter(UserData.phone_number == self._payload['phone_number']).first() is not None:
-            return 'Такой номер телефона уже существует'
         elif not re.match("^[А-Яа-я -]?", self._payload['name']):
             return 'Ваше имя должно содержать только кириллицу, пробел и тире'
         elif not re.match("^[А-Яа-я -]?", self._payload['surname']):
@@ -87,26 +85,44 @@ class UserData(connectionDB, Base):
             todayDate
     
     def addData(self):
-        self.session.add(self)
-        self.session.commit()
-        return 'данные успешно добавлены'
+        if self.session.query(UserData.phone_number).filter(UserData.phone_number == self._payload['phone_number']).first() is not None:
+            self.session.query(UserData).filter(UserData.phone_number == self._payload['phone_number']).update(
+                {
+                'name': self.name,
+                'surname': self.surname,
+                'country': self.country,
+                'country_code': self.country_code,
+                'date_modified_': self.date_modified_,
+                'patronymic_': self.patronymic_,
+                'email_': self.email_,
+                }
+            )
+            self.session.commit()
+            return 'данные успешно обновлены'
+        else:
+            self.session.add(self)
+            self.session.commit()
+            return 'данные успешно добавлены'
 
-def getData(number):
-    session = connectionDB().session
-    res = session.query(UserData.name, UserData.surname, UserData.patronymic_, UserData.phone_number, UserData.email_, UserData.country, UserData.country_code).filter(UserData.phone_number == number).first()
-    if res is None:
-        return None
-    return res
+class interactionData(connectionDB): 
+    def __init__(self, payload: dict):
+        super().__init__()
+        self.phone_number = payload['phone_number']
 
-def delData(number):
-    try:
-        session = connectionDB().session
-        res = session.query(UserData).filter(UserData.phone_number == number).one()
-        session.delete(res)
-        session.commit()
-    except SQLAlchemyError:
-        return None
-    else:
-        return 'Данные удалены'
+    async def getData(self):
+        res = self.session.query(UserData.name, UserData.surname, UserData.patronymic_, UserData.phone_number, UserData.email_, UserData.country, UserData.country_code).filter(UserData.phone_number == self.phone_number).first()
+        if res is None:
+            return None
+        return res
+
+    async def delData(self):
+        try:
+            res = self.session.query(UserData).filter(UserData.phone_number == self.phone_number).one()
+            self.session.delete(res)
+            self.session.commit()
+        except SQLAlchemyError:
+            return None
+        else:
+            return 'Данные удалены'
 
 

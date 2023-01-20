@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.requests import Request
-from models import UserData, getData, delData
-
+from models import UserData, interactionData
+import uvicorn
 app = FastAPI()
 
 retJson = {
@@ -13,6 +13,10 @@ retJson = {
     'country': None,
     'country_code': None,
 }
+
+@app.get("/")
+def read_root():
+    return {"UserData"}
 
 @app.post("/save_user_data")
 async def saveUserData(request: Request):
@@ -26,8 +30,8 @@ async def saveUserData(request: Request):
 @app.post("/get_user_data")
 async def getUserData(request: Request):
     returnUserData = retJson
-    sender = UserData(await request.json())
-    res = getData(request.json()['phone_number'])
+    IData = interactionData(await request.json())
+    res = await IData.getData()
     if res is None:
         return 'Данного номер нет в базе'
     for i, key in enumerate(returnUserData.keys()):
@@ -36,7 +40,12 @@ async def getUserData(request: Request):
 
 @app.post("/delete_user_data")
 async def delUserData(request: Request):
-    res = delData(request.json()['phone_number'])   
+    IData = interactionData(await request.json())   
+    res = await IData.delData()
     if res is None:
         return 'Данного номер нет в базе'
     return res
+    
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+
